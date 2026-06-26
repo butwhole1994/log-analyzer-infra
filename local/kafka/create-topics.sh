@@ -21,7 +21,7 @@ if [[ ! -f "${COMPOSE_FILE}" ]]; then
   exit 1
 fi
 
-COMPOSE_ARGS=(compose -f "${COMPOSE_FILE}")
+COMPOSE_ARGS=(compose)
 
 if [[ -f "${ENV_FILE}" ]]; then
   COMPOSE_ARGS+=(--env-file "${ENV_FILE}")
@@ -29,9 +29,11 @@ else
   echo "[WARN] ${ENV_FILE} not found. Running without --env-file."
 fi
 
+COMPOSE_ARGS+=(-f "${COMPOSE_FILE}")
+
 run_kafka_topics() {
-  docker "${COMPOSE_ARGS[@]}" exec -T "${KAFKA_SERVICE}" \
-    sh -lc 'exec "$@"' sh \
+  MSYS_NO_PATHCONV=1 docker "${COMPOSE_ARGS[@]}" exec -T "${KAFKA_SERVICE}" \
+    sh -lc '"$@"' sh \
     "${KAFKA_TOPICS_CMD}" "$@"
 }
 
