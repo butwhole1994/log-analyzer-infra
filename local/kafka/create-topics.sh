@@ -1,47 +1,84 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
-set -e
+COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.yml}"
+ENV_FILE="${ENV_FILE:-.env}"
+KAFKA_SERVICE="${KAFKA_SERVICE:-kafka}"
 
-KAFKA_CONTAINER_NAME="${KAFKA_CONTAINER_NAME:-log-analyzer-kafka}"
-KAFKA_BOOTSTRAP_SERVER="${KAFKA_BOOTSTRAP_SERVER:-localhost:9092}"
+TOPIC_NAME="${TOPIC_NAME:-mvp.log-events}"
+DLQ_TOPIC_NAME="${DLQ_TOPIC_NAME:-mvp.log-events-dlq}"
 
-LOG_EVENTS_TOPIC="${KAFKA_TOPIC_LOG_EVENTS:-log-events}"
-LOG_EVENTS_DLQ_TOPIC="${KAFKA_TOPIC_LOG_EVENTS_DLQ:-log-events-dlq}"
+PARTITIONS="${PARTITIONS:-3}"
+REPLICATION_FACTOR="${REPLICATION_FACTOR:-1}"
+RETENTION_MS="${RETENTION_MS:-604800000}"
 
-PARTITIONS="${KAFKA_TOPIC_PARTITIONS:-3}"
-REPLICATION_FACTOR="${KAFKA_TOPIC_REPLICATION_FACTOR:-1}"
+KAFKA_INTERNAL_PORT="${KAFKA_INTERNAL_PORT:-9092}"
+KAFKA_BOOTSTRAP_SERVER="${KAFKA_BOOTSTRAP_SERVER:-${KAFKA_SERVICE}:${KAFKA_INTERNAL_PORT}}"
+KAFKA_TOPICS_CMD="${KAFKA_TOPICS_CMD:-/opt/kafka/bin/kafka-topics.sh}"
 
-echo "Creating Kafka topics..."
-echo "Kafka container: ${KAFKA_CONTAINER_NAME}"
-echo "Bootstrap server: ${KAFKA_BOOTSTRAP_SERVER}"
+if [[ ! -f "${COMPOSE_FILE}" ]]; then
+  echo "[ERROR] ${COMPOSE_FILE} not found. Run this script from the local directory." >&2
+  exit 1
+fi
 
-create_topic_if_not_exists() {
-  local topic_name="$1"
-  local partitions="$2"
-  local replication_factor="$3"
+COMPOSE_ARGS=(compose -f "${COMPOSE_FILE}")
 
-  echo "Checking topic: ${topic_name}"
+if [[ -f "${ENV_FILE}" ]]; then
+  COMPOSE_ARGS+=(--env-file "${ENV_FILE}")
+else
+  echo "[WARN] ${ENV_FILE} not found. Running without --env-file."
+fi
 
-  if docker exec "${KAFKA_CONTAINER_NAME}" \
-    /opt/kafka/bin/kafka-topics.sh \
-    --bootstrap-server "${KAFKA_BOOTSTRAP_SERVER}" \
-    --list | grep -q "^${topic_name}$"; then
-
-    echo "Topic already exists: ${topic_name}"
-  else
-    docker exec "${KAFKA_CONTAINER_NAME}" \
-      /opt/kafka/bin/kafka-topics.sh \
-      --bootstrap-server "${KAFKA_BOOTSTRAP_SERVER}" \
-      --create \
-      --topic "${topic_name}" \
-      --partitions "${partitions}" \
-      --replication-factor "${replication_factor}"
-
-    echo "Topic created: ${topic_name}"
-  fi
+run_kafka_topics() {
+  docker "${COMPOSE_ARGS[@]}" exec -T "${KAFKA_SERVICE}" \
+    sh -lc 'exec "$@"' sh \
+    "${KAFKA_TOPICS_CMD}" "$@"
 }
 
-create_topic_if_not_exists "${LOG_EVENTS_TOPIC}" "${PARTITIONS}" "${REPLICATION_FACTOR}"
-create_topic_if_not_exists "${LOG_EVENTS_DLQ_TOPIC}" "${PARTITIONS}" "${REPLICATION_FACTOR}"
+create_topic() {
+  local topic_name="$1"
 
-echo "Kafka topic creation completed."
+  echo "Creating topic if not exists: ${topic_name}"
+
+  run_kafka_topics \
+    --bootstrap-server "${KAFKA_BOOTSTRAP_SERVER}" \
+    --create \
+    --if-not-exists \
+    --topic "${topic_name}" \
+    --partitions "${PARTITIONS}" \
+    --replication-factor "${REPLICATION_FACTOR}" \
+    --config "retention.ms=${RETENTION_MS}"
+}
+
+describe_topic() {
+  local topic_name="$1"
+
+  echo "Topic description: ${topic_name}"
+
+  run_kafka_topics \
+    --bootstrap-server "${KAFKA_BOOTSTRAP_SERVER}" \
+    --describe \
+    --topic "${topic_name}"
+}
+
+echo "Kafka service: ${KAFKA_SERVICE}"
+echo "Bootstrap server: ${KAFKA_BOOTSTRAP_SERVER}"
+echo "Main topic: ${TOPIC_NAME}"
+echo "DLQ topic: ${DLQ_TOPIC_NAME}"
+echo "Partitions: ${PARTITIONS}"
+echo "Replication factor: ${REPLICATION_FACTOR}"
+echo "Retention ms: ${RETENTION_MS}"
+
+echo "Checking Kafka broker health..."
+
+run_kafka_topics \
+  --bootstrap-server "${KAFKA_BOOTSTRAP_SERVER}" \
+  --list >/dev/null
+
+create_topic "${TOPIC_NAME}"
+create_topic "${DLQ_TOPIC_NAME}"
+
+describe_topic "${TOPIC_NAME}"
+describe_topic "${DLQ_TOPIC_NAME}"
+
+echo "Done."
