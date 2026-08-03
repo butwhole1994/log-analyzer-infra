@@ -9,8 +9,12 @@
 - `local/.env`: 로컬 실행용 포트, 계정, 이미지 설정
 - `local/postgres/init.sql`: PostgreSQL 초기 스키마 및 시드 데이터
 - `local/scripts/create-kafka-topics.sh`: Kafka 토픽 생성 및 확인 스크립트
+- `local/scripts/verify-kafka.sh`: Kafka topic, offset, consumer group 검증 스크립트
 - `local/opensearch/init.sh`: OpenSearch 템플릿, 파이프라인, 초기 인덱스 생성
+- `local/scripts/up.sh`: Docker Compose 기반 로컬 인프라 기동 래퍼
+- `local/scripts/down.sh`: Docker Compose 기반 로컬 인프라 종료 래퍼
 - `local/scripts/health-check.sh`: 전체 인프라 헬스체크
+- `docs/kafka-local-verification.md`: MVP3 Kafka topic과 consumer group 로컬 검증 절차
 
 ## 실행 순서
 
@@ -23,7 +27,7 @@ Windows에서는 Git Bash 또는 WSL 같은 Bash 실행 환경이 필요합니�
 
 ```bash
 cd local
-docker compose --env-file .env -f docker-compose.yml up -d
+bash scripts/up.sh
 ```
 
 4. PostgreSQL과 Redis가 올라올 때까지 잠시 기다립니다.
@@ -52,10 +56,29 @@ bash scripts/health-check.sh
 - PostgreSQL: `127.0.0.1:15432`
 - Redis: `127.0.0.1:16379`
 - Kafka: `127.0.0.1:19092`
+- Kafka topics: `mvp.log-events`, `mvp.log-events-dlq`
 - Kafka UI: `http://127.0.0.1:18080`
 - Redis Commander: `http://127.0.0.1:18081`
 - OpenSearch: `http://127.0.0.1:19200`
+- OpenSearch aliases/pipeline: `logs-read`, `logs-write`, `logs-pipeline`
 - OpenSearch Dashboards: `http://127.0.0.1:15601`
+
+## 백엔드 연동 기준
+
+`log-analyzer-backend`의 local profile 기본값과 맞춘 값입니다.
+
+- `gateway-service`: `7010`
+- `log-service`: `7020`
+- `event-consumer`: `7030`
+- `KAFKA_BOOTSTRAP_SERVERS`: `localhost:19092`
+- `KAFKA_TOPIC_LOG_EVENTS`: `mvp.log-events`
+- `KAFKA_TOPIC_LOG_EVENTS_DLQ`: `mvp.log-events-dlq`
+- `OPENSEARCH_URL`: `http://localhost:19200`
+- `OPENSEARCH_READ_TARGET`: `logs-read`
+- `OPENSEARCH_INDEX_NAME`: `logs-write`
+- `OPENSEARCH_PIPELINE_NAME`: `logs-pipeline`
+
+Gateway를 통한 로그 조회 진입점은 `http://localhost:7010/api/logs`입니다.
 
 ## 연결 확인 방법
 
@@ -87,6 +110,8 @@ docker compose --env-file .env -f docker-compose.yml exec -T kafka \
 
 또는 `http://127.0.0.1:18080`의 Kafka UI에서 브로커와 토픽 상태를 확인합니다.
 
+MVP3 topic, message payload, consumer group, offset 검증 절차는 `docs/kafka-local-verification.md`를 참고합니다.
+
 ### OpenSearch
 
 ```bash
@@ -109,4 +134,4 @@ OpenSearch Dashboards는 `http://127.0.0.1:15601`에서 확인합니다.
 ## 비고
 
 - 이 저장소의 README에는 infra 로컬 실행에 필요한 정보만 적었습니다.
-- 백엔드 실행 순서와 Gateway 호출 방법은 backend 저장소 문서를 따로 참고해야 합니다.
+- 백엔드 실행 순서는 backend 저장소 문서를 따로 참고해야 합니다.

@@ -141,14 +141,24 @@ curl "${CURL_OPTIONS[@]}" -X PUT "${OPENSEARCH_URL}/_index_template/${INDEX_TEMP
           \"ingestedAt\": {
             \"type\": \"date\"
           },
-          \"id\": {
+          \"eventId\": {
             \"type\": \"keyword\"
           },
-          \"service\": {
+          \"serviceName\": {
             \"type\": \"keyword\"
           },
           \"level\": {
             \"type\": \"keyword\"
+          },
+          \"requestId\": {
+            \"type\": \"keyword\"
+          },
+          \"publishedAt\": {
+            \"type\": \"date\"
+          },
+          \"metadata\": {
+            \"type\": \"object\",
+            \"enabled\": true
           },
           \"loggerName\": {
             \"type\": \"keyword\"
