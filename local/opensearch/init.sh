@@ -64,7 +64,7 @@ OPENSEARCH_USERNAME="${OPENSEARCH_USERNAME:-admin}"
 OPENSEARCH_PASSWORD="${OPENSEARCH_PASSWORD:-${OPENSEARCH_INITIAL_ADMIN_PASSWORD:-}}"
 OPENSEARCH_CURL_INSECURE="${OPENSEARCH_CURL_INSECURE:-false}"
 
-CURL_OPTIONS=(-fs)
+CURL_OPTIONS=(-fsS)
 
 if [ "${OPENSEARCH_CURL_INSECURE}" = "true" ]; then
   CURL_OPTIONS+=(-k)
@@ -73,6 +73,20 @@ fi
 if [ "${OPENSEARCH_DISABLE_SECURITY_PLUGIN:-true}" != "true" ] && [ -n "${OPENSEARCH_PASSWORD}" ]; then
   CURL_OPTIONS+=(-u "${OPENSEARCH_USERNAME}:${OPENSEARCH_PASSWORD}")
 fi
+
+on_error() {
+  local exit_code=$?
+
+  echo
+  echo "[ERROR] OpenSearch initialization failed."
+  echo "[ERROR] OpenSearch URL: ${OPENSEARCH_URL:-not configured}"
+  echo "[ERROR] Security plugin disabled: ${OPENSEARCH_DISABLE_SECURITY_PLUGIN:-not configured}"
+  echo "[ERROR] Check that Docker Compose is running and OpenSearch is reachable."
+
+  exit "${exit_code}"
+}
+
+trap on_error ERR
 
 # ------------------------------------------------------------
 # 2. OpenSearch initialization settings
@@ -220,7 +234,7 @@ curl "${CURL_OPTIONS[@]}" -X PUT "${OPENSEARCH_URL}/_ingest/pipeline/${PIPELINE_
 echo "Ingest pipeline created."
 
 # ------------------------------------------------------------
-# 7. Create initial index with aliases
+# 7. Create initial index
 # ------------------------------------------------------------
 echo
 echo "Checking initial index..."
@@ -228,25 +242,73 @@ echo "Checking initial index..."
 if curl "${CURL_OPTIONS[@]}" "${OPENSEARCH_URL}/${INITIAL_INDEX}" > /dev/null; then
   echo "Initial index already exists: ${INITIAL_INDEX}"
 else
-  echo "Creating initial index with aliases..."
+  echo "Creating initial index..."
 
   curl "${CURL_OPTIONS[@]}" -X PUT "${OPENSEARCH_URL}/${INITIAL_INDEX}" \
     -H "Content-Type: application/json" \
     -d "{
-      \"aliases\": {
-        \"${WRITE_ALIAS}\": {
-          \"is_write_index\": true
-        },
-        \"${READ_ALIAS}\": {}
-      }
+      \"aliases\": {}
     }"
 
   echo "Initial index created: ${INITIAL_INDEX}"
 fi
 
 # ------------------------------------------------------------
-# 8. Verify result
+# 8. Create or repair aliases
 # ------------------------------------------------------------
+echo
+echo "Creating or repairing aliases..."
+
+ALIAS_REMOVE_ACTIONS=""
+
+if curl "${CURL_OPTIONS[@]}" "${OPENSEARCH_URL}/_alias/${WRITE_ALIAS}" > /dev/null 2>&1; then
+  ALIAS_REMOVE_ACTIONS="${ALIAS_REMOVE_ACTIONS}
+        { \"remove\": { \"index\": \"*\", \"alias\": \"${WRITE_ALIAS}\" } },"
+fi
+
+if curl "${CURL_OPTIONS[@]}" "${OPENSEARCH_URL}/_alias/${READ_ALIAS}" > /dev/null 2>&1; then
+  ALIAS_REMOVE_ACTIONS="${ALIAS_REMOVE_ACTIONS}
+        { \"remove\": { \"index\": \"*\", \"alias\": \"${READ_ALIAS}\" } },"
+fi
+
+curl "${CURL_OPTIONS[@]}" -X POST "${OPENSEARCH_URL}/_aliases" \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"actions\": [
+      ${ALIAS_REMOVE_ACTIONS}
+      {
+        \"add\": {
+          \"index\": \"${INITIAL_INDEX}\",
+          \"alias\": \"${WRITE_ALIAS}\",
+          \"is_write_index\": true
+        }
+      },
+      {
+        \"add\": {
+          \"index\": \"${INITIAL_INDEX}\",
+          \"alias\": \"${READ_ALIAS}\"
+        }
+      }
+    ]
+  }"
+
+echo "Aliases are configured."
+
+# ------------------------------------------------------------
+# 9. Verify result
+# ------------------------------------------------------------
+echo
+echo "Verifying index template..."
+
+curl "${CURL_OPTIONS[@]}" "${OPENSEARCH_URL}/_index_template/${INDEX_TEMPLATE_NAME}" > /dev/null
+echo "Index template is available: ${INDEX_TEMPLATE_NAME}"
+
+echo
+echo "Verifying ingest pipeline..."
+
+curl "${CURL_OPTIONS[@]}" "${OPENSEARCH_URL}/_ingest/pipeline/${PIPELINE_NAME}" > /dev/null
+echo "Ingest pipeline is available: ${PIPELINE_NAME}"
+
 echo
 echo "Verifying aliases..."
 

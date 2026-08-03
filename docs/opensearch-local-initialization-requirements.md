@@ -10,8 +10,8 @@
 - 요구사항의 `local/opensearch/init-opensearch.sh`는 현재 존재하지 않는다. 다음 구현 작업에서는 기존 `init.sh`를 유지하고, 필요한 경우 `init-opensearch.sh`를 호환 wrapper로 추가한다.
 - 기존 ingest pipeline은 색인 시각 필드로 `ingestedAt`을 생성한다.
 - backend `OpenSearchLogDocument`와 현재 infra mapping 기준에는 `indexedAt`이 없다. `indexedAt`을 새 표준으로 도입하려면 backend DTO, 검색 응답, 문서까지 함께 변경해야 하므로 이번 요구사항에서는 `ingestedAt`을 기준 필드로 사용한다.
-- 기존 script는 initial index 생성 시 alias를 함께 생성한다. 이미 index가 존재하는 경우 alias 상태를 별도로 재확인/보정하는 로직은 보강 대상이다.
-- 기존 script는 template, pipeline을 `PUT`으로 생성하므로 반복 실행 가능하다. index, alias는 중복 실행 안정성을 더 명확히 해야 한다.
+- 현재 script는 initial index가 이미 존재해도 alias 상태를 재확인하고 `logs-local-000001` 기준으로 보정한다.
+- 현재 script는 template, pipeline을 `PUT`으로 생성하고 alias를 `_aliases` API로 재구성하므로 반복 실행 가능하다.
 
 ## 목적
 
@@ -165,7 +165,7 @@ pipeline은 `ingestedAt` 필드를 `{{_ingest.timestamp}}` 값으로 설정한�
 PUT /logs-local-000001
 ```
 
-이미 존재하면 실패하지 않고 존재 상태를 출력한다.
+이미 존재하면 실패하지 않고 존재 상태를 출력한다. alias는 다음 단계에서 별도로 재확인한다.
 
 ### 5. Alias 생성 또는 재확인
 
@@ -180,7 +180,7 @@ logs-write
 logs-read
 ```
 
-`logs-write`는 `logs-local-000001`에 대해 `is_write_index: true`로 설정한다. 이미 index가 존재하지만 alias가 없거나 잘못 연결된 경우 alias를 보정한다.
+`logs-write`는 `logs-local-000001`에 대해 `is_write_index: true`로 설정한다. 이미 index가 존재하지만 alias가 없거나 잘못 연결된 경우 `_aliases` API로 alias를 보정한다.
 
 ## Alias 기준
 
