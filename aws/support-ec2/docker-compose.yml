@@ -1,0 +1,98 @@
+services:
+  kafka:
+    image: ${KAFKA_IMAGE}
+    container_name: ${KAFKA_CONTAINER_NAME}
+    restart: unless-stopped
+    environment:
+      KAFKA_NODE_ID: ${KAFKA_NODE_ID}
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: ${KAFKA_NODE_ID}@kafka:${KAFKA_CONTROLLER_PORT}
+
+      KAFKA_LISTENERS: INTERNAL://:${KAFKA_INTERNAL_PORT},CONTROLLER://:${KAFKA_CONTROLLER_PORT}
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://${KAFKA_ADVERTISED_HOST}:${KAFKA_INTERNAL_PORT}
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+    ports:
+      - "${KAFKA_INTERNAL_PORT}:${KAFKA_INTERNAL_PORT}"
+    volumes:
+      - ${KAFKA_DATA_PATH}:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:${KAFKA_INTERNAL_PORT} --list >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+    networks:
+      - log-analyzer-support-net
+
+  kafka-ui:
+    image: ${KAFKA_UI_IMAGE}
+    container_name: ${KAFKA_UI_CONTAINER_NAME}
+    restart: unless-stopped
+    environment:
+      KAFKA_CLUSTERS_0_NAME: ${KAFKA_CLUSTER_NAME}
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:${KAFKA_INTERNAL_PORT}
+    ports:
+      - "${KAFKA_UI_CONTAINER_PORT}:${KAFKA_UI_CONTAINER_PORT}"
+    depends_on:
+      kafka:
+        condition: service_healthy
+    networks:
+      - log-analyzer-support-net
+
+  opensearch:
+    image: ${OPENSEARCH_IMAGE}
+    container_name: ${OPENSEARCH_CONTAINER_NAME}
+    restart: unless-stopped
+    environment:
+      discovery.type: ${OPENSEARCH_DISCOVERY_TYPE}
+      bootstrap.memory_lock: "true"
+      OPENSEARCH_JAVA_OPTS: ${OPENSEARCH_JAVA_OPTS}
+      DISABLE_SECURITY_PLUGIN: ${OPENSEARCH_DISABLE_SECURITY_PLUGIN}
+      OPENSEARCH_INITIAL_ADMIN_PASSWORD: ${OPENSEARCH_INITIAL_ADMIN_PASSWORD}
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    ports:
+      - "${OPENSEARCH_CONTAINER_PORT}:${OPENSEARCH_CONTAINER_PORT}"
+      - "${OPENSEARCH_PERFORMANCE_ANALYZER_CONTAINER_PORT}:${OPENSEARCH_PERFORMANCE_ANALYZER_CONTAINER_PORT}"
+    volumes:
+      - ${OPENSEARCH_DATA_PATH}:/usr/share/opensearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:${OPENSEARCH_CONTAINER_PORT}/_cluster/health >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+    networks:
+      - log-analyzer-support-net
+
+  opensearch-dashboards:
+    image: ${OPENSEARCH_DASHBOARDS_IMAGE}
+    container_name: ${OPENSEARCH_DASHBOARDS_CONTAINER_NAME}
+    restart: unless-stopped
+    environment:
+      OPENSEARCH_HOSTS: '["http://opensearch:${OPENSEARCH_CONTAINER_PORT}"]'
+      DISABLE_SECURITY_DASHBOARDS_PLUGIN: ${OPENSEARCH_DASHBOARDS_DISABLE_SECURITY_PLUGIN}
+    ports:
+      - "${OPENSEARCH_DASHBOARDS_CONTAINER_PORT}:${OPENSEARCH_DASHBOARDS_CONTAINER_PORT}"
+    depends_on:
+      opensearch:
+        condition: service_healthy
+    networks:
+      - log-analyzer-support-net
+
+networks:
+  log-analyzer-support-net:
+    driver: bridge

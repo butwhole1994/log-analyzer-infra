@@ -1,0 +1,43 @@
+aws_region          = "ap-northeast-2"
+owner               = "platform-team"
+ecs_cluster_arn     = "arn:aws:ecs:ap-northeast-2:123456789012:cluster/log-analyzer-dev-cluster"
+private_subnet_ids  = ["subnet-0123456789abcdef0", "subnet-0123456789abcdef1"]
+execution_role_arn  = "arn:aws:iam::123456789012:role/log-analyzer-dev-ecs-execution"
+execution_role_name = "log-analyzer-dev-ecs-execution"
+
+db_host                  = "log-analyzer-dev-postgres.xxxxx.ap-northeast-2.rds.amazonaws.com"
+db_name                  = "log_analyzer"
+db_username              = "log_analyzer_app"
+kafka_bootstrap_servers  = "10.0.20.10:9092"
+opensearch_url           = "http://10.0.20.10:9200"
+
+services = {
+  gateway-service = {
+    image              = "123456789012.dkr.ecr.ap-northeast-2.amazonaws.com/log-analyzer/gateway-service:latest"
+    container_port     = 8080
+    cpu                = 256
+    memory             = 512
+    desired_count      = 1
+    security_group_ids = ["sg-0123456789abcdef0"]
+    task_role_arn      = "arn:aws:iam::123456789012:role/log-analyzer-dev-gateway-service-task"
+    target_group_arn   = "arn:aws:elasticloadbalancing:ap-northeast-2:123456789012:targetgroup/log-analyzer-dev-gateway/abcdef0123456789"
+  }
+  log-service = {
+    image              = "123456789012.dkr.ecr.ap-northeast-2.amazonaws.com/log-analyzer/log-service:latest"
+    container_port     = 8080
+    cpu                = 256
+    memory             = 512
+    desired_count      = 1
+    security_group_ids = ["sg-0123456789abcdef0"]
+    task_role_arn      = "arn:aws:iam::123456789012:role/log-analyzer-dev-log-service-task"
+  }
+  event-consumer = {
+    image              = "123456789012.dkr.ecr.ap-northeast-2.amazonaws.com/log-analyzer/event-consumer:latest"
+    container_port     = 8080
+    cpu                = 256
+    memory             = 512
+    desired_count      = 1
+    security_group_ids = ["sg-0123456789abcdef0"]
+    task_role_arn      = "arn:aws:iam::123456789012:role/log-analyzer-dev-event-consumer-task"
+  }
+}
