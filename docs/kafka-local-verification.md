@@ -14,8 +14,8 @@ MVP3에서 사용하는 Kafka topic과 consumer group을 로컬 환경에서 검
 
 | Topic | 용도 |
 | --- | --- |
-| `mvp.log-events` | `log-service`가 로그 이벤트를 발행하는 기본 topic |
-| `mvp.log-events-dlq` | `event-consumer` 처리 실패 메시지를 적재하는 DLQ topic |
+| `log-analyzer.dev.log-events` | `log-service`가 로그 이벤트를 발행하는 기본 topic |
+| `log-analyzer.dev.log-events-dlq` | `event-consumer` 처리 실패 메시지를 적재하는 DLQ topic |
 
 ### Consumer Group
 
@@ -56,29 +56,29 @@ docker compose --env-file .env -f docker-compose.yml exec -T kafka \
 
 목록에 아래 topic이 모두 표시되어야 한다.
 
-- `mvp.log-events`
-- `mvp.log-events-dlq`
+- `log-analyzer.dev.log-events`
+- `log-analyzer.dev.log-events-dlq`
 
 ## Topic 상세 확인
 
-`mvp.log-events` 상세 정보:
+`log-analyzer.dev.log-events` 상세 정보:
 
 ```bash
 docker compose --env-file .env -f docker-compose.yml exec -T kafka \
   sh -lc '/opt/kafka/bin/kafka-topics.sh \
     --bootstrap-server kafka:9092 \
     --describe \
-    --topic mvp.log-events'
+    --topic log-analyzer.dev.log-events'
 ```
 
-`mvp.log-events-dlq` 상세 정보:
+`log-analyzer.dev.log-events-dlq` 상세 정보:
 
 ```bash
 docker compose --env-file .env -f docker-compose.yml exec -T kafka \
   sh -lc '/opt/kafka/bin/kafka-topics.sh \
     --bootstrap-server kafka:9092 \
     --describe \
-    --topic mvp.log-events-dlq'
+    --topic log-analyzer.dev.log-events-dlq'
 ```
 
 기본 생성 기준은 partition `3`, replication factor `1`, retention `604800000ms`다.
@@ -87,22 +87,22 @@ docker compose --env-file .env -f docker-compose.yml exec -T kafka \
 
 `kafka-topics.sh --describe`는 partition 구성 확인용이다. 메시지 발행으로 offset이 증가했는지는 `kafka-get-offsets.sh`로 확인한다.
 
-`mvp.log-events` end offset:
+`log-analyzer.dev.log-events` end offset:
 
 ```bash
 docker compose --env-file .env -f docker-compose.yml exec -T kafka \
   sh -lc '/opt/kafka/bin/kafka-get-offsets.sh \
     --bootstrap-server kafka:9092 \
-    --topic mvp.log-events'
+    --topic log-analyzer.dev.log-events'
 ```
 
-`mvp.log-events-dlq` end offset:
+`log-analyzer.dev.log-events-dlq` end offset:
 
 ```bash
 docker compose --env-file .env -f docker-compose.yml exec -T kafka \
   sh -lc '/opt/kafka/bin/kafka-get-offsets.sh \
     --bootstrap-server kafka:9092 \
-    --topic mvp.log-events-dlq'
+    --topic log-analyzer.dev.log-events-dlq'
 ```
 
 메시지가 발행되면 해당 topic의 partition별 end offset 합계가 증가한다.
@@ -130,7 +130,7 @@ docker compose --env-file .env -f docker-compose.yml exec -T kafka \
 
 확인 기준:
 
-- `TOPIC`에 `mvp.log-events`가 표시된다.
+- `TOPIC`에 `log-analyzer.dev.log-events`가 표시된다.
 - `CURRENT-OFFSET`이 consume 완료 offset이다.
 - `LOG-END-OFFSET`이 topic의 최신 offset이다.
 - `LAG`가 `0`이면 최신 메시지까지 consume한 상태다.
@@ -145,13 +145,13 @@ http://127.0.0.1:18080
 
 Topic 확인:
 
-- `Topics` 메뉴에서 `mvp.log-events` topic이 존재하는지 확인한다.
-- `Topics` 메뉴에서 `mvp.log-events-dlq` topic이 존재하는지 확인한다.
+- `Topics` 메뉴에서 `log-analyzer.dev.log-events` topic이 존재하는지 확인한다.
+- `Topics` 메뉴에서 `log-analyzer.dev.log-events-dlq` topic이 존재하는지 확인한다.
 - topic 상세 화면에서 partition, message count, latest offset을 확인한다.
 
 Message payload 확인:
 
-- `Topics` 메뉴에서 `mvp.log-events`를 연다.
+- `Topics` 메뉴에서 `log-analyzer.dev.log-events`를 연다.
 - `Messages` 또는 `Messages browser` 화면으로 이동한다.
 - 새 메시지가 보이지 않으면 offset 조회 기준을 latest가 아닌 earliest 또는 beginning으로 변경한다.
 - payload에 `id`, `service`, `level`, `message`, `traceId`, `requestId`, `timestamp` 같은 `log-service` 발행 필드가 포함되는지 확인한다.
@@ -159,7 +159,7 @@ Message payload 확인:
 Consumer group 확인:
 
 - `Consumers` 또는 `Consumer Groups` 메뉴에서 `event-consumer` group을 연다.
-- `mvp.log-events` topic의 current offset, end offset, lag을 확인한다.
+- `log-analyzer.dev.log-events` topic의 current offset, end offset, lag을 확인한다.
 - `log-service`가 메시지를 발행한 뒤 end offset이 증가하는지 확인한다.
 - `event-consumer`가 consume한 뒤 current offset이 증가하고 lag이 감소하는지 확인한다.
 
@@ -170,7 +170,7 @@ Consumer group 확인:
 ```text
 log-service
   ↓
-mvp.log-events
+log-analyzer.dev.log-events
   ↓
 event-consumer
   ↓
@@ -181,7 +181,7 @@ consumer group: event-consumer
 
 1. `log-service`와 `event-consumer`를 local profile로 실행한다.
 2. `log-service`의 로그 이벤트 발행 API인 `POST /api/logs`를 호출한다.
-3. Kafka UI 또는 CLI end offset 조회에서 `mvp.log-events`의 offset 증가를 확인한다.
+3. Kafka UI 또는 CLI end offset 조회에서 `log-analyzer.dev.log-events`의 offset 증가를 확인한다.
 4. `event-consumer` 로그에서 consume 성공 로그를 확인한다.
 5. Consumer group 상세 정보에서 `event-consumer`의 `CURRENT-OFFSET` 증가와 `LAG` 감소를 확인한다.
 
@@ -215,15 +215,15 @@ event-consumer 처리 실패
   ↓
 retry
   ↓
-mvp.log-events-dlq
+log-analyzer.dev.log-events-dlq
 ```
 
 확인 절차:
 
-1. `mvp.log-events-dlq` topic이 생성되어 있는지 확인한다.
+1. `log-analyzer.dev.log-events-dlq` topic이 생성되어 있는지 확인한다.
 2. backend에서 DLQ 발행이 가능한 실패 조건을 만든다.
-3. Kafka UI의 `mvp.log-events-dlq` topic 메시지 화면에서 payload 적재 여부를 확인한다.
-4. CLI end offset 조회로 `mvp.log-events-dlq`의 offset 증가 여부를 확인한다.
+3. Kafka UI의 `log-analyzer.dev.log-events-dlq` topic 메시지 화면에서 payload 적재 여부를 확인한다.
+4. CLI end offset 조회로 `log-analyzer.dev.log-events-dlq`의 offset 증가 여부를 확인한다.
 
 DLQ 메시지가 보이지 않으면 실패 조건이 retry 후 DLQ 발행까지 도달했는지 backend 로그를 먼저 확인한다.
 

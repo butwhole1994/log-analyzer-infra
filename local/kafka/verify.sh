@@ -15,8 +15,8 @@ if [[ -f "${ENV_FILE}" ]]; then
   set +a
 fi
 
-TOPIC_NAME="${TOPIC_NAME:-${KAFKA_TOPIC_LOG_EVENTS:-mvp.log-events}}"
-DLQ_TOPIC_NAME="${DLQ_TOPIC_NAME:-${KAFKA_TOPIC_LOG_EVENTS_DLQ:-mvp.log-events-dlq}}"
+TOPIC_NAME="${TOPIC_NAME:-${KAFKA_TOPIC_LOG_EVENTS:-log-analyzer.dev.log-events}}"
+DLQ_TOPIC_NAME="${DLQ_TOPIC_NAME:-${KAFKA_TOPIC_LOG_EVENTS_DLQ:-log-analyzer.dev.log-events-dlq}}"
 CONSUMER_GROUP="${CONSUMER_GROUP:-${KAFKA_CONSUMER_GROUP_ID:-event-consumer}}"
 
 KAFKA_INTERNAL_PORT="${KAFKA_INTERNAL_PORT:-9092}"

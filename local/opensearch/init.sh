@@ -94,14 +94,14 @@ trap on_error ERR
 # These values are init-script specific defaults.
 # Override them by exporting environment variables if needed.
 
-INDEX_TEMPLATE_NAME="${INDEX_TEMPLATE_NAME:-logs-template}"
-INDEX_PATTERN="${INDEX_PATTERN:-logs-*}"
+INDEX_TEMPLATE_NAME="${INDEX_TEMPLATE_NAME:-log-analyzer-dev-logs-template}"
+INDEX_PATTERN="${INDEX_PATTERN:-log-analyzer-dev-logs-*}"
 
-INITIAL_INDEX="${INITIAL_INDEX:-logs-local-000001}"
-READ_ALIAS="${READ_ALIAS:-logs-read}"
-WRITE_ALIAS="${WRITE_ALIAS:-logs-write}"
+INITIAL_INDEX="${INITIAL_INDEX:-log-analyzer-dev-logs-000001}"
+READ_ALIAS="${READ_ALIAS:-log-analyzer-dev-logs-read}"
+WRITE_ALIAS="${WRITE_ALIAS:-log-analyzer-dev-logs-write}"
 
-PIPELINE_NAME="${PIPELINE_NAME:-logs-pipeline}"
+PIPELINE_NAME="${PIPELINE_NAME:-log-analyzer-dev-logs-pipeline}"
 
 NUMBER_OF_SHARDS="${NUMBER_OF_SHARDS:-1}"
 NUMBER_OF_REPLICAS="${NUMBER_OF_REPLICAS:-0}"

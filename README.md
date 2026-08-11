@@ -56,11 +56,11 @@ bash scripts/health-check.sh
 - PostgreSQL: `127.0.0.1:15432`
 - Redis: `127.0.0.1:16379`
 - Kafka: `127.0.0.1:19092`
-- Kafka topics: `mvp.log-events`, `mvp.log-events-dlq`
+- Kafka topics: `log-analyzer.dev.log-events`, `log-analyzer.dev.log-events-dlq`
 - Kafka UI: `http://127.0.0.1:18080`
 - Redis Commander: `http://127.0.0.1:18081`
 - OpenSearch: `http://127.0.0.1:19200`
-- OpenSearch aliases/pipeline: `logs-read`, `logs-write`, `logs-pipeline`
+- OpenSearch aliases/pipeline: `log-analyzer-dev-logs-read`, `log-analyzer-dev-logs-write`, `log-analyzer-dev-logs-pipeline`
 - OpenSearch Dashboards: `http://127.0.0.1:15601`
 
 ## 백엔드 연동 기준
@@ -71,12 +71,12 @@ bash scripts/health-check.sh
 - `log-service`: `7020`
 - `event-consumer`: `7030`
 - `KAFKA_BOOTSTRAP_SERVERS`: `localhost:19092`
-- `KAFKA_TOPIC_LOG_EVENTS`: `mvp.log-events`
-- `KAFKA_TOPIC_LOG_EVENTS_DLQ`: `mvp.log-events-dlq`
+- `KAFKA_TOPIC_LOG_EVENTS`: `log-analyzer.dev.log-events`
+- `KAFKA_TOPIC_LOG_EVENTS_DLQ`: `log-analyzer.dev.log-events-dlq`
 - `OPENSEARCH_URL`: `http://localhost:19200`
-- `OPENSEARCH_READ_TARGET`: `logs-read`
-- `OPENSEARCH_INDEX_NAME`: `logs-write`
-- `OPENSEARCH_PIPELINE_NAME`: `logs-pipeline`
+- `OPENSEARCH_READ_TARGET`: `log-analyzer-dev-logs-read`
+- `OPENSEARCH_INDEX_NAME`: `log-analyzer-dev-logs-write`
+- `OPENSEARCH_PIPELINE_NAME`: `log-analyzer-dev-logs-pipeline`
 
 Gateway를 통한 로그 조회 진입점은 `http://localhost:7010/api/logs`입니다.
 

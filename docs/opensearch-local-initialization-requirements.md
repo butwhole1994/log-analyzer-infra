@@ -10,7 +10,7 @@
 - 요구사항의 `local/opensearch/init-opensearch.sh`는 현재 존재하지 않는다. 다음 구현 작업에서는 기존 `init.sh`를 유지하고, 필요한 경우 `init-opensearch.sh`를 호환 wrapper로 추가한다.
 - 기존 ingest pipeline은 색인 시각 필드로 `ingestedAt`을 생성한다.
 - backend `OpenSearchLogDocument`와 현재 infra mapping 기준에는 `indexedAt`이 없다. `indexedAt`을 새 표준으로 도입하려면 backend DTO, 검색 응답, 문서까지 함께 변경해야 하므로 이번 요구사항에서는 `ingestedAt`을 기준 필드로 사용한다.
-- 현재 script는 initial index가 이미 존재해도 alias 상태를 재확인하고 `logs-local-000001` 기준으로 보정한다.
+- 현재 script는 initial index가 이미 존재해도 alias 상태를 재확인하고 `log-analyzer-dev-logs-000001` 기준으로 보정한다.
 - 현재 script는 template, pipeline을 `PUT`으로 생성하고 alias를 `_aliases` API로 재구성하므로 반복 실행 가능하다.
 
 ## 목적
@@ -38,16 +38,16 @@ MVP3에서 로그 이벤트를 OpenSearch에 안정적으로 색인하고 조회
 
 | 리소스 | 이름 | 용도 |
 | --- | --- | --- |
-| index template | `logs-template` | `logs-*` index에 적용할 기본 settings/mapping template |
-| initial index | `logs-local-000001` | local 환경 초기 로그 index |
-| write alias | `logs-write` | `event-consumer`가 로그 document를 색인할 대상 alias |
-| read alias | `logs-read` | `log-service`가 로그 document를 조회할 대상 alias |
-| ingest pipeline | `logs-pipeline` | 로그 document 색인 전 처리 pipeline |
+| index template | `log-analyzer-dev-logs-template` | `log-analyzer-dev-logs-*` index에 적용할 기본 settings/mapping template |
+| initial index | `log-analyzer-dev-logs-000001` | local 환경 초기 로그 index |
+| write alias | `log-analyzer-dev-logs-write` | `event-consumer`가 로그 document를 색인할 대상 alias |
+| read alias | `log-analyzer-dev-logs-read` | `log-service`가 로그 document를 조회할 대상 alias |
+| ingest pipeline | `log-analyzer-dev-logs-pipeline` | 로그 document 색인 전 처리 pipeline |
 
 ## Index Pattern
 
 ```text
-logs-*
+log-analyzer-dev-logs-*
 ```
 
 ## Mapping 기준
@@ -146,15 +146,15 @@ GET /_cluster/health
 ### 2. Index template 생성
 
 ```http
-PUT /_index_template/logs-template
+PUT /_index_template/log-analyzer-dev-logs-template
 ```
 
-template에는 `logs-*` index pattern, shard/replica 설정, mapping 기준 필드를 포함한다.
+template에는 `log-analyzer-dev-logs-*` index pattern, shard/replica 설정, mapping 기준 필드를 포함한다.
 
 ### 3. Ingest pipeline 생성
 
 ```http
-PUT /_ingest/pipeline/logs-pipeline
+PUT /_ingest/pipeline/log-analyzer-dev-logs-pipeline
 ```
 
 pipeline은 `ingestedAt` 필드를 `{{_ingest.timestamp}}` 값으로 설정한다.
@@ -162,7 +162,7 @@ pipeline은 `ingestedAt` 필드를 `{{_ingest.timestamp}}` 값으로 설정한�
 ### 4. 초기 index 생성
 
 ```http
-PUT /logs-local-000001
+PUT /log-analyzer-dev-logs-000001
 ```
 
 이미 존재하면 실패하지 않고 존재 상태를 출력한다. alias는 다음 단계에서 별도로 재확인한다.
@@ -176,36 +176,36 @@ POST /_aliases
 생성 또는 보정 대상 alias:
 
 ```text
-logs-write
-logs-read
+log-analyzer-dev-logs-write
+log-analyzer-dev-logs-read
 ```
 
-`logs-write`는 `logs-local-000001`에 대해 `is_write_index: true`로 설정한다. 이미 index가 존재하지만 alias가 없거나 잘못 연결된 경우 `_aliases` API로 alias를 보정한다.
+`log-analyzer-dev-logs-write`는 `log-analyzer-dev-logs-000001`에 대해 `is_write_index: true`로 설정한다. 이미 index가 존재하지만 alias가 없거나 잘못 연결된 경우 `_aliases` API로 alias를 보정한다.
 
 ## Alias 기준
 
-### logs-write
+### log-analyzer-dev-logs-write
 
 `event-consumer`가 로그 document를 색인할 때 사용하는 alias이다.
 
 ```text
 event-consumer
   ↓
-logs-write
+log-analyzer-dev-logs-write
   ↓
-logs-local-000001
+log-analyzer-dev-logs-000001
 ```
 
-### logs-read
+### log-analyzer-dev-logs-read
 
 `log-service`가 로그 document를 조회할 때 사용하는 alias이다.
 
 ```text
 log-service
   ↓
-logs-read
+log-analyzer-dev-logs-read
   ↓
-logs-local-000001
+log-analyzer-dev-logs-000001
 ```
 
 ## 상태 확인 명령어
@@ -225,50 +225,50 @@ curl -X GET "http://localhost:19200/_cluster/health?pretty"
 ### Index 확인
 
 ```bash
-curl -X GET "http://localhost:19200/_cat/indices/logs-*?v"
+curl -X GET "http://localhost:19200/_cat/indices/log-analyzer-dev-logs-*?v"
 ```
 
 ### Alias 확인
 
 ```bash
-curl -X GET "http://localhost:19200/_cat/aliases/logs-*?v"
+curl -X GET "http://localhost:19200/_cat/aliases/log-analyzer-dev-logs-*?v"
 ```
 
 ### Index template 확인
 
 ```bash
-curl -X GET "http://localhost:19200/_index_template/logs-template?pretty"
+curl -X GET "http://localhost:19200/_index_template/log-analyzer-dev-logs-template?pretty"
 ```
 
 ### Ingest pipeline 확인
 
 ```bash
-curl -X GET "http://localhost:19200/_ingest/pipeline/logs-pipeline?pretty"
+curl -X GET "http://localhost:19200/_ingest/pipeline/log-analyzer-dev-logs-pipeline?pretty"
 ```
 
 ### Mapping 확인
 
 ```bash
-curl -X GET "http://localhost:19200/logs-local-000001/_mapping?pretty"
+curl -X GET "http://localhost:19200/log-analyzer-dev-logs-000001/_mapping?pretty"
 ```
 
 ## OpenSearch Dashboards 확인 기준
 
 - OpenSearch Dashboards `http://127.0.0.1:15601`에 접속한다.
-- Index Management에서 `logs-local-000001` index를 확인한다.
-- Index Management에서 `logs-read`, `logs-write` alias를 확인한다.
-- Dev Tools에서 `GET logs-*/_search` 조회가 가능한지 확인한다.
-- Discover에서 `logs-*` 또는 `logs-read` 기준으로 로그 document를 조회할 수 있는지 확인한다.
-- Discover가 index pattern 생성을 요구하면 `logs-*`를 Data view 또는 Index pattern으로 생성한다.
+- Index Management에서 `log-analyzer-dev-logs-000001` index를 확인한다.
+- Index Management에서 `log-analyzer-dev-logs-read`, `log-analyzer-dev-logs-write` alias를 확인한다.
+- Dev Tools에서 `GET log-analyzer-dev-logs-*/_search` 조회가 가능한지 확인한다.
+- Discover에서 `log-analyzer-dev-logs-*` 또는 `log-analyzer-dev-logs-read` 기준으로 로그 document를 조회할 수 있는지 확인한다.
+- Discover가 index pattern 생성을 요구하면 `log-analyzer-dev-logs-*`를 Data view 또는 Index pattern으로 생성한다.
 
 ## 완료 조건
 
 - OpenSearch 초기화 스크립트 위치와 실행 방법이 정리되어 있다.
-- `logs-template` index template이 생성된다.
-- `logs-pipeline` ingest pipeline이 생성된다.
-- `logs-local-000001` 초기 index가 생성된다.
-- `logs-write` alias가 생성되며 `is_write_index: true`로 연결된다.
-- `logs-read` alias가 생성된다.
+- `log-analyzer-dev-logs-template` index template이 생성된다.
+- `log-analyzer-dev-logs-pipeline` ingest pipeline이 생성된다.
+- `log-analyzer-dev-logs-000001` 초기 index가 생성된다.
+- `log-analyzer-dev-logs-write` alias가 생성되며 `is_write_index: true`로 연결된다.
+- `log-analyzer-dev-logs-read` alias가 생성된다.
 - 초기화 스크립트를 여러 번 실행해도 치명적인 오류 없이 동작한다.
 - 이미 index가 존재하더라도 alias 누락 또는 불일치 상태를 재확인하고 보정할 수 있다.
 - index, alias, index template, ingest pipeline 상태를 CLI로 확인할 수 있다.
