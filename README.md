@@ -14,12 +14,15 @@
 - `local/scripts/up.sh`: Docker Compose 기반 로컬 인프라 기동 래퍼
 - `local/scripts/down.sh`: Docker Compose 기반 로컬 인프라 종료 래퍼
 - `local/scripts/health-check.sh`: 전체 인프라 헬스체크
+- `local/kubernetes/`: Docker Desktop Kubernetes에서 backend 서비스들을 실행하는 local manifest와 검증 스크립트
 - `docs/kafka-local-verification.md`: MVP3 Kafka topic과 consumer group 로컬 검증 절차
 
 ## 실행 순서
 
 아래 순서는 `local/` 디렉터리에서 실행하는 기준입니다.
 Windows에서는 Git Bash 또는 WSL 같은 Bash 실행 환경이 필요합니다.
+
+backend 애플리케이션만 Docker Desktop Kubernetes로 실행하려면 [local Kubernetes backend](local/kubernetes/README.md)를 참고합니다.
 
 1. Docker Desktop이 실행 중인지 확인합니다.
 2. `local/.env` 설정을 확인합니다.
