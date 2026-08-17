@@ -204,8 +204,13 @@ publish_response="$(curl -fsS -X POST http://localhost:7010/api/logs \
 
 echo "${publish_response}"
 
+if ! grep -Fq "${test_id}" <<<"${publish_response}"; then
+  echo "Publish failed or the response did not preserve requestId=${test_id}." >&2
+  exit 1
+fi
+
 found=false
-for attempt in $(seq 1 30); do
+for attempt in {1..30}; do
   search_response="$(curl -fsS \
     "http://localhost:7010/api/logs?requestId=${test_id}&size=10" 2>/dev/null || true)"
 
